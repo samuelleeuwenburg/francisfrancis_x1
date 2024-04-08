@@ -1,0 +1,48 @@
+# FrancisFrancis X1 Monitor
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.13.1"},
+  {:kino_vega_lite, "~> 0.1.13"},
+  {:req, "~> 0.5.1"}
+])
+```
+
+## Section
+
+```elixir
+alias VegaLite, as: Vl
+
+Stream.interval(1000)
+|> Stream.scan([], fn _, samples ->
+  case Req.get("http://192.168.2.11", receive_timeout: 900, retry: false) do
+    {:ok, %{body: body}} ->
+      sample = body
+      |> Map.put("timestamp", DateTime.utc_now())
+
+      [sample | samples]
+      
+    _ ->
+      samples
+  end
+end)
+|> Kino.animate(fn samples ->
+  Vl.new(width: 680, height: 480)
+  |> Vl.data_from_values(samples)
+  |> Vl.layers([
+    Vl.new()
+    |> Vl.mark(:line, size: 2, color: "#53ceff", tooltip: true)
+    |> Vl.encode_field(:x, "timestamp", type: :temporal)
+    |> Vl.encode_field(:y, "thermocouple", aggregate: :mean, scale: [domain: [0, 200]]),
+    Vl.new()
+    |> Vl.mark(:line, size: 2, color: "#35ff53", tooltip: true)
+    |> Vl.encode_field(:x, "timestamp", type: :temporal)
+    |> Vl.encode_field(:y, "setpoint", aggregate: :mean, scale: [domain: [0, 200]]),
+    Vl.new()
+    |> Vl.mark(:line, size: 2, color: "#ff3553", tooltip: true)
+    |> Vl.encode_field(:x, "timestamp", type: :temporal)
+    |> Vl.encode_field(:y, "duty_cycle", aggregate: :mean, scale: [domain: [0, 200]]),
+  ])
+  
+end)
+```
